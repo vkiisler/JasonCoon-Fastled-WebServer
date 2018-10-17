@@ -295,7 +295,6 @@ def doMethod(method, path, callback) {
 		)
 		log(hubAction, 2) 
 		sendHubCommand(hubAction)
-		hubAction    
 	}
 	catch (Exception e) {
 		log("Hit Exception $e on $hubAction", 0)
