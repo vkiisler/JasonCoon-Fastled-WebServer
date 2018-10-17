@@ -38,8 +38,8 @@ def getInitProperties() {
 
 preferences {
     section("Effcts"){
-    	generatePatternSelector()
-        generatePaletteSelector()
+    	generateSetupSelector("pattern", "Pattern")
+    	generateSetupSelector("palette", "Palette")
     }
 	section("Internal Access"){
 		input "internal_ip", "text", title: "Internal IP", required: true
@@ -57,7 +57,6 @@ metadata {
 		capability "Color Control"
         capability "Polling"
         capability "Refresh"
-
         
         command autoOn
         command autoOff
@@ -71,11 +70,9 @@ metadata {
         command setCurrentPalette, ["string"]
 	}
 
-	// simulator metadata
 	simulator {
 	}
 
-	// UI tile definitions
 	tiles {
         multiAttributeTile(name:"switch", type: "lighting", width: 6, height: 4, canChangeIcon: true) {
             tileAttribute ("device.switch", key: "PRIMARY_CONTROL") {
@@ -92,16 +89,6 @@ metadata {
             }
         }
 
-        standardTile("pattern", "pattern", width: 3, height: 3, canChangeIcon: true) {
-            state "off", label: 'SetPattern', action: "setCurrentPattern",
-                  icon: "st.switches.switch.off", backgroundColor: "#ffffff"
-        }
-
-		standardTile("palette", "palette", width: 3, height: 3, canChangeIcon: true) {
-            state "off", label: 'SetPalette', action: "setCurrentPalette",
-                  icon: "st.switches.switch.off", backgroundColor: "#ffffff"
-        }
-
         standardTile("auto", "auto", width: 3, height: 3, canChangeIcon: true) {
             state "off", label: 'Auto ${currentValue}', action: "autoOn",
                   icon: "st.Seasonal Winter.seasonal-winter-003", backgroundColor: "#ffffff", nextState:"turningOn"
@@ -111,39 +98,21 @@ metadata {
     		state "turningOff", label:'Turning off', icon:"st.Seasonal Winter.seasonal-winter-003", backgroundColor:"#ffffff", nextState: "turningOn"                  
         }
 
-        controlTile("autoplayDuration", "autoplayDuration", "slider", height: 3, width: 3, label: "Autoplay duration", range: "(${findConfNode('autoplayDuration').min}..${findConfNode('autoplayDuration').max})") {
-    		state "autoplayDuration", action:"setAutoplayDuration"
-		}
+		slider("autoplayDuration", "Autoplay duration", "setAutoplayDuration", 3, 3)
 
-		controlTile("speed", "speed", "slider", height: 1, width: 2, label: "Speed", range: "(${findConfNode('speed').min}..${findConfNode('speed').max})") {
-    		state "speed", action:"setSpeed"
-		}
+        smallSlider("speed", "Speed", "setSpeed")
+		smallSlider("cooling", "Cooling", "setCooling")
+		smallSlider("sparking", "Sparking", "setSparking")
+        smallSlider("twinkleSpeed", "Twinkle speed", "setTwinkleSpeed")
+        smallSlider("twinkleDensity", "Twinkle density", "setTwinkleDensity")
 
-		controlTile("cooling", "cooling", "slider", height: 1, width: 2, label: "Cooling", range: "(${findConfNode('cooling').min}..${findConfNode('cooling').max})") {
-    		state "cooling", action:"setCooling"
-		}
-
-		controlTile("sparking", "sparking", "slider", height: 1, width: 2, label: "Sparking", range: "(${findConfNode('sparking').min}..${findConfNode('sparking').max})") {
-    		state "sparking", action:"setSparking"
-		}
-
-		controlTile("twinkleSpeed", "twinkleSpeed", "slider", height: 1, width: 2, label: "Twinkle speed", range: "(${findConfNode('twinkleSpeed').min}..${findConfNode('twinkleSpeed').max})") {
-    		state "twinkleSpeed", action:"setTwinkleSpeed"
-		}
-
-		controlTile("twinkleDensity", "twinkleDensity", "slider", height: 1, width: 2, label: "Twinkle density", range: "(${findConfNode('twinkleDensity').min}..${findConfNode('twinkleDensity').max})") {
-    		state "twinkleDensity", action:"setTwinkleDensity"
-		}
-        
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat", width: 2, height: 1) {
 			state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
 
-
 		main(["switch"])
 		
         details (["switch",
-//        		  "pattern", "palette",
                   "auto", "autoplayDuration", "speed",
                   "cooling", "sparking", "twinkleSpeed",
                   "twinkleDensity", "refresh"])
@@ -155,91 +124,67 @@ def parse(description) {
 }
 
 def updated() {
-	log("updated", 1)
+	log("updated")
     setCurrentPattern()
     setCurrentPalette()
 }
 
 def installed() {
-	log("installed", 1)
+	log("installed")
 }
 
 def configure() {
-	log("configure", 1)
+	log("configure")
 }
 
 def setAutoplayDuration(duration){
-    log("SET Autoplay duration $duration", 1) 
     send("/autoplayDuration?value=$duration")
-    refresh()
 }
 
 def setSpeed(speed){
-    log("SET Speed $speed", 1) 
     send("/speed?value=$speed")
-    refresh()
 }
 
 def on() {
-    log("Executing ON", 1) 
     send("/power?value=1")
-    refresh()
 }
 
 def off() {
-    log("Executing OFF", 1) 
     send("/power?value=0")
-    refresh()
 }
 
 def autoOn() {
-    log("Executing AutoON", 1) 
     send("/autoplay?value=1")
-    refresh()
 }
 
 def autoOff() {
-    log("Executing AutoOFF", 1) 
     send("/autoplay?value=0")
-    refresh()
 }
 
 def setLevel(level){
 	def levelC = convert(level, 100, 255)
-	log("Set level = $levelC", 1)
     send("/brightness?value=$levelC")
-    refresh()
 }
 
 def setCooling(level){
-	log("Set cooling = $level", 1)
     send("/cooling?value=$level")
-    refresh()
 }
 
 def setSparking(level){
-	log("Set sparking = $level", 1)
     send("/sparking?value=$level")
-    refresh()
 }
 
 def setColor(color) {
 	def colorStr = "r=$color.red&g=$color.green&b=$color.blue"
-	log("Set color = $colorStr", 1)
     send("/solidColor?$colorStr")
-    refresh()
 }
 
 def setTwinkleSpeed(level){
-	log("Set twinkle speed = $level", 1)
     send("/twinkleSpeed?value=$level")
-    refresh()
 }
 
 def setTwinkleDensity(level){
-	log("Set twinkle density = $level", 1)
     send("/twinkleDensity?value=$level")
-    refresh()
 }
 
 def setCurrentPattern(patternName) {
@@ -251,19 +196,15 @@ def setCurrentPalette(patternName) {
 }
 
 def setPattern(patternName) {
-	log("Set pattern = $patternName", 1)
     send("/patternName?value=$patternName")
-    refresh()
 }
 
 def setPalette(paletteName) {
-	log("Set palette = $paletteName", 1)
     send("/paletteName?value=$paletteName")
-    refresh()
 }
 
 def commandsCallback(physicalgraph.device.HubResponse hubResponse){
-	log("callback commandsCallback\nBody: $hubResponse.body", 4)
+	log("callback commandsCallback\nBody: $hubResponse.body", 3)
 }
 
 def offOn(int state){
@@ -272,7 +213,7 @@ def offOn(int state){
 
 def refreshCallback(physicalgraph.device.HubResponse hubResponse){
 	def state = new groovy.json.JsonSlurper().parseText(hubResponse.body)
-	log("callback refreshCallback\nBody: $hubResponse.body")
+	log("callback refreshCallback\nBody: $hubResponse.body", 2)
 	for(def member in state) {
     	if (member.type != 'Section') {
             switch (member.name) {
@@ -327,7 +268,9 @@ def refresh() {
 }
 
 def send(path) {
+	log(path)
 	doMethod("POST", path, commandsCallback)
+    refresh()
 }
 
 def doMethod(method, path, callback) {
@@ -368,15 +311,20 @@ def convert(value, int fromRange, int toRange){
 	return Math.round(value * toRange / fromRange)
 }
 
-def generatePatternSelector() {
-        input "pattern", "enum", title: "Pattern", defaultValue: 0, displayDuringSetup: false, required: true, options: findConfNode("pattern").options
-}
-
-def generatePaletteSelector() {
-        input "palette", "enum", title: "Palette", defaultValue: 0, displayDuringSetup: false, required: true, options: findConfNode("palette").options
-}
-
 def log(message, level = 1) {
 	if (logLevel >= level)
     	log.debug(message)
+}
+
+def smallSlider(name, label, action) {
+	slider(name, label, action, 1, 2)
+}
+
+def slider(name, label, action, height, width) {
+		controlTile(name, name, "slider", height: height, width: width, label: label, range: "(${findConfNode(name).min}..${findConfNode(name).max})") {
+    		state "$name", action:"$action"
+		}
+}
+def generateSetupSelector(name, title){
+        input "$name", "enum", title: "$title", defaultValue: 0, displayDuringSetup: false, required: true, options: findConfNode("$name").options
 }
