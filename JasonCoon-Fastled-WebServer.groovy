@@ -32,13 +32,13 @@ def getInitProperties() {
 	'''
 	[{"name":"power","label":"Power","type":"Boolean","value":1},{"name":"brightness","label":"Brightness","type":"Number","value":255,"min":1,"max":255},{"name":"pattern","label":"Pattern","type":"Select","value":1,"options":["Pride","Color Waves","Rainbow Twinkles","Snow Twinkles","Cloud Twinkles","Incandescent Twinkles","Retro C9 Twinkles","Red & White Twinkles","Blue & White Twinkles","Red, Green & White Twinkles","Fairy Light Twinkles","Snow 2 Twinkles","Holly Twinkles","Ice Twinkles","Party Twinkles","Forest Twinkles","Lava Twinkles","Fire Twinkles","Cloud 2 Twinkles","Ocean Twinkles","Rainbow","Rainbow With Glitter","Solid Rainbow","Confetti","Sinelon","Beat","Juggle","Fire","Water","Solid Color"]},{"name":"palette","label":"Palette","type":"Select","value":0,"options":["Rainbow","Rainbow Stripe","Cloud","Lava","Ocean","Forest","Party","Heat"]},{"name":"speed","label":"Speed","type":"Number","value":30,"min":1,"max":255},{"name":"autoplay","label":"Autoplay","type":"Section"},{"name":"autoplay","label":"Autoplay","type":"Boolean","value":0},{"name":"autoplayDuration","label":"Autoplay Duration","type":"Number","value":1,"min":0,"max":255},{"name":"solidColor","label":"Solid Color","type":"Section"},{"name":"solidColor","label":"Color","type":"Color","value":"0,128,255"},{"name":"fire","label":"Fire & Water","type":"Section"},{"name":"cooling","label":"Cooling","type":"Number","value":49,"min":0,"max":255},{"name":"sparking","label":"Sparking","type":"Number","value":60,"min":0,"max":255},{"name":"twinkles","label":"Twinkles","type":"Section"},{"name":"twinkleSpeed","label":"Twinkle Speed","type":"Number","value":4,"min":0,"max":8},{"name":"twinkleDensity","label":"Twinkle Density","type":"Number","value":5,"min":0,"max":8}]
 	'''
+    
 	return new groovy.json.JsonSlurper().parseText(deviceDefaultProperties)
 }
 
 preferences {
-	section("Effcts"){
-		generateSetupSelector("pattern", "Pattern")
-		generateSetupSelector("palette", "Palette")
+	section("Effects"){
+        generateSetupSelectors()
 	}
 	section("Internal Access"){
 		input "internal_ip", "text", title: "Internal IP", required: true
@@ -65,8 +65,8 @@ metadata {
 		command setTwinkleSpeed, ["number"]
 		command setTwinkleDensity, ["number"]
 		command setAutoplayDuration, ["number"]
-		command setCurrentPattern, ["string"]
-		command setCurrentPalette, ["string"]
+		command setPattern, ["string"]
+		command setPalette, ["string"]
 	}
 
 	simulator {
@@ -161,8 +161,7 @@ def autoOff() {
 }
 
 def setLevel(level){
-	def levelC = convert(level, 100, 255)
-	send("/brightness?value=$levelC")
+	send("/brightness?value=${convert(level, 100, 255)}")
 }
 
 def setCooling(level){
@@ -174,8 +173,7 @@ def setSparking(level){
 }
 
 def setColor(color) {
-	def colorStr = "r=$color.red&g=$color.green&b=$color.blue"
-	send("/solidColor?$colorStr")
+	send("/solidColor?r=$color.red&g=$color.green&b=$color.blue")
 }
 
 def setTwinkleSpeed(level){
@@ -186,11 +184,11 @@ def setTwinkleDensity(level){
 	send("/twinkleDensity?value=$level")
 }
 
-def setCurrentPattern(patternName) {
+def setCurrentPattern() {
 	setPattern(pattern)
 }
 
-def setCurrentPalette(patternName) {
+def setCurrentPalette() {
 	setPalette(palette)
 }
 
@@ -212,9 +210,8 @@ def offOn(int state){
 
 def refreshCallback(physicalgraph.device.HubResponse hubResponse){
 	try {
-		def state = new groovy.json.JsonSlurper().parseText(hubResponse.body)
 		log("callback refreshCallback\nBody: $hubResponse.body", 2)
-		for(def member in state) {
+		for(def member in new groovy.json.JsonSlurper().parseText(hubResponse.body)) {
 			if (member.type != 'Section') {
 				switch (member.name) {
 					case 'power':
@@ -263,8 +260,7 @@ def toInt(str) {
 def colorToHex(colorStr) {
 	def splitted = colorStr?.split(",")
 	def convertedIntValue = toInt(splitted[0]) * 256 * 256 + toInt(splitted[1]) * 256 + toInt(splitted[2])
-	def result = "#" + (Integer.toHexString(convertedIntValue)).padLeft(6, '0')
-	return result
+	return "#" + (Integer.toHexString(convertedIntValue)).padLeft(6, '0')
 }
 
 def refresh() {
@@ -301,14 +297,20 @@ def doMethod(method, path, callback) {
 	}
 }
 
-def findConfNode(name){
+def findConfNodes(nodeName, value) {
+	def retArray=[]
 	for(def member in getInitProperties()) {
 		if (member.type != 'Section') {
-			if (member.name == name) {
-				return member
+			if (member[nodeName] == value) {
+				retArray << member
 			}
 		}
 	}
+	return retArray
+}
+
+def findConfNode(name){
+	return findConfNodes("name", name)[0]
 }
 
 def convert(value, int fromRange, int toRange){
@@ -329,6 +331,14 @@ def slider(name, label, action, height, width) {
 		state "$name", action:"$action"
 	}
 }
-def generateSetupSelector(name, title){
-	input "$name", "enum", title: "$title", defaultValue: 0, displayDuringSetup: false, required: true, options: findConfNode("$name").options
+
+def generateSetupSelector(name, title, options){
+	input "$name", "enum", title: "$title", defaultValue: 0, displayDuringSetup: false, required: true, options: options
+}
+
+def generateSetupSelectors(){
+	def optinNodes = findConfNodes("type", "Select")
+    for (def node in optinNodes) {
+		generateSetupSelector(node.name, node.label, node.options)
+	}
 }
