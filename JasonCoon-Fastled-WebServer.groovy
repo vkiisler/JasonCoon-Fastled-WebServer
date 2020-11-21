@@ -13,7 +13,7 @@
  *  JasonCoon FastLed WebServer
  *
  *  Author: Vahur Kiisler (vkiisler)
- *  Date: 2018-10-16
+ *  Date: 2020-11-21
  *
  * Instructions:
  * Follow instructions on https://github.com/jasoncoon/esp8266-fastled-webserver
@@ -173,7 +173,14 @@ def setSparking(level){
 }
 
 def setColor(color) {
-	send("/solidColor?r=$color.red&g=$color.green&b=$color.blue")
+	def rgb = huesatToRGB(color.hue as Integer, color.saturation as Integer)
+    def red = rgb[0]
+    def green = rgb[1]
+    def blue = rgb[2]
+	log(rgb)
+	send("/solidColor?r=$red&g=$green&b=$blue")
+    
+//	send("/solidColor?r=$color.red&g=$color.green&b=$color.blue")
 }
 
 def setTwinkleSpeed(level){
@@ -185,11 +192,11 @@ def setTwinkleDensity(level){
 }
 
 def setCurrentPattern() {
-	setPattern(pattern)
+	setPattern(pattern.replaceAll('&', '%26'))
 }
 
 def setCurrentPalette() {
-	setPalette(palette)
+	setPalette(palette.replaceAll('&', '%26'))
 }
 
 def setPattern(patternName) {
@@ -208,7 +215,52 @@ def offOn(int state){
 	return [0:"off", 1:"on"][state]
 }
 
+// huesatToRGB Changed method provided by daved314
+def huesatToRGB(float hue, float sat) {
+	if (hue <= 100) {
+		hue = hue * 3.6
+    }
+    sat = sat / 100
+    float v = 1.0
+    float c = v * sat
+    float x = c * (1 - Math.abs(((hue/60)%2) - 1))
+    float m = v - c
+    int mod_h = (int)(hue / 60)
+    int cm = Math.round((c+m) * 255)
+    int xm = Math.round((x+m) * 255)
+    int zm = Math.round((0+m) * 255)
+    switch(mod_h) {
+    	case 0: return [cm, xm, zm]
+       	case 1: return [xm, cm, zm]
+        case 2: return [zm, cm, xm]
+        case 3: return [zm, xm, cm]
+        case 4: return [xm, zm, cm]
+        case 5: return [cm, zm, xm]
+	}   	
+}
+def rgbToHSV(red, green, blue) {
+	float r = red / 255f
+	float g = green / 255f
+	float b = blue / 255f
+	float max = [r, g, b].max()
+	float delta = max - [r, g, b].min()
+	def hue = 13
+	def saturation = 0
+	if (max && delta) {
+		saturation = 100 * delta / max
+		if (r == max) {
+			hue = ((g - b) / delta) * 100 / 6
+		} else if (g == max) {
+			hue = (2 + (b - r) / delta) * 100 / 6
+		} else {
+			hue = (4 + (r - g) / delta) * 100 / 6
+		}
+	}
+	[hue: hue, saturation: saturation, value: max * 100]
+}
+
 def refreshCallback(physicalgraph.device.HubResponse hubResponse){
+//	var String strRgb[]
 	try {
 		log("callback refreshCallback\nBody: $hubResponse.body", 2)
 		for(def member in new groovy.json.JsonSlurper().parseText(hubResponse.body)) {
@@ -224,7 +276,12 @@ def refreshCallback(physicalgraph.device.HubResponse hubResponse){
 						sendEvent(name: "level", value: convert(member.value, 255, 100))
 						break
 					case 'solidColor':
-						sendEvent(name: "color", value: colorToHex(member.value))
+                        def str = member.value.toString()
+                        def strRgb = member.value.split(',')
+                        def hsv = rgbToHSV(strRgb[0].toInteger(), strRgb[1].toInteger(), strRgb[2].toInteger())
+//						sendEvent(name: "color", value: colorToHex(member.value))
+                        sendEvent(name: "saturation", value: hsv.saturation)
+                        sendEvent(name: "hue", value: hsv.hue)
 						break
 					case 'autoplayDuration':
 						sendEvent(name: "autoplayDuration", value: member.value) 
